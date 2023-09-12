@@ -8,7 +8,8 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 // const formidableMiddleware = require('express-formidable');
 const multer = require('multer');
-const AWS = require('aws-sdk');
+const { Upload } = require('@aws-sdk/lib-storage'),
+	{ S3 } = require('@aws-sdk/client-s3');
 
 app.use(cors());
 app.use(express.json()); // To parse JSON-encoded bodies
@@ -107,12 +108,12 @@ const upload = multer({
 	dest: 'files/', // Location where files will be saved
 });
 
-const s3 = new AWS.S3({
+const s3 = new S3({
 	accessKeyId: 'AKIA45AZE7WUGTGPQUL2',
 	secretAccessKey: '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',
 });
 
-app.post('/api/upload', upload.any(), function (req, res) {
+app.post('/api/upload', upload.any(), async function (req, res) {
 	const file = req.files;
 
 	console.log('The file is the', file[0].originalname);
@@ -123,27 +124,15 @@ app.post('/api/upload', upload.any(), function (req, res) {
 		Body: Buffer.from(file[0].path),
 	};
 
-	s3.upload(uploadParams, function (err, data) {
-		err && console.log('Error', err);
-		data && console.log('Upload Success', data.Location);
-	});
-
-	// console.log(req.body); // Text input
-	// console.log(req.files);
-	// app.post('/api/upload', async (req, res) => {
-	// const imageBuffer = req.file.buffer; // Image data
-	// const form = formidable({ multiples: true });
-	// form.parse(req);
-
-	// const make = req.fields; Other field values
-	// const image = req.files;
-
-	// console.log('The make in the request body', make);
-	// console.log('The file is ', image);
-	// const description = req.body.description;
-
-	// Process and save the image and form data
-	// ...
+	try {
+		const data = await new Upload({
+			client: s3,
+			params: uploadParams,
+		}).done();
+		console.log('Upload Success', data.Location);
+	} catch (err) {
+		console.log('Error', err);
+	}
 
 	res.json({ message: 'Upload successful' });
 });
